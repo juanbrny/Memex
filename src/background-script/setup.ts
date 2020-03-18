@@ -47,6 +47,8 @@ import { combineSearchIndex } from 'src/search/search-index'
 import { StorexHubBackground } from 'src/storex-hub/background'
 import { JobScheduler } from 'src/job-scheduler/background/job-scheduler'
 import { bindMethod } from 'src/util/functions'
+import { BrowserSettingsStore } from 'src/util/settings'
+import { StorexHubSettings } from 'src/storex-hub/background/types'
 
 export interface BackgroundModules {
     auth: AuthBackground
@@ -207,6 +209,12 @@ export function createBackgroundModules(options: {
         }),
         storexHub: new StorexHubBackground({
             storageManager,
+            settingsStore: new BrowserSettingsStore<StorexHubSettings>(
+                options.browserAPIs.storage.local,
+                {
+                    prefix: 'storexHub.',
+                },
+            ),
         }),
         features: new FeatureOptIns(),
         pages,
@@ -255,6 +263,7 @@ export async function setupBackgroundModules(
     await backgroundModules.sync.setup()
     await backgroundModules.jobScheduler.setup()
     backgroundModules.sync.registerRemoteEmitter()
+    await backgroundModules.storexHub.connect({ onlyIfPreviouslyUsed: true })
 }
 
 export function getBackgroundStorageModules(
