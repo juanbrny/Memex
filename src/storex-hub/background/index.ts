@@ -8,6 +8,7 @@ import { StorexHubSettingStore } from './types'
 export class StorexHubBackground {
     private socket?: SocketIOClient.Socket
     private client?: StorexHubApi_v0
+    private accessToken?: string
 
     constructor(
         private dependencies: {
@@ -18,6 +19,13 @@ export class StorexHubBackground {
 
     async connect(options?: { port?: number; onlyIfPreviouslyUsed?: boolean }) {
         let subscriptionCount = 0
+        this.accessToken = await this.dependencies.settingsStore.get(
+            'accessToken',
+        )
+        if (!this.accessToken && options?.onlyIfPreviouslyUsed) {
+            return
+        }
+
         this.socket = io(`http://localhost:${options?.port || 3000}`)
         this.client = await createStorexHubSocketClient(this.socket, {
             callbacks: {
@@ -34,22 +42,21 @@ export class StorexHubBackground {
                 },
             },
         })
+        this.setupReidentificationAfterReconnect()
 
-        const existingAccessToken = await this.dependencies.settingsStore.get(
-            'accessToken',
-        )
-        if (existingAccessToken) {
+        if (this.accessToken) {
             await this.client.identifyApp({
                 name: 'memex',
-                accessToken: existingAccessToken,
+                accessToken: this.accessToken,
             })
-        } else if (!options?.onlyIfPreviouslyUsed) {
+        } else {
             const registrationResponse = await this.client.registerApp({
                 name: 'memex',
                 remote: true,
                 identify: true,
             })
             if (registrationResponse.success) {
+                this.accessToken = registrationResponse.accessToken
                 await this.dependencies.settingsStore.set(
                     'accessToken',
                     registrationResponse.accessToken,
@@ -65,6 +72,24 @@ export class StorexHubBackground {
 
         this.client.emitEvent({
             event: { type: 'storage-change', info: event.info },
+        })
+    }
+
+    setupReidentificationAfterReconnect() {
+        let connected = true
+        this.socket.on('disconnect', () => {
+            connected = false
+        })
+        this.socket.on('connect', async () => {
+            connected = true
+            if (connected || !this.accessToken) {
+                return
+            }
+
+            await this.client.identifyApp({
+                name: 'memex',
+                accessToken: this.accessToken,
+            })
         })
     }
 }
