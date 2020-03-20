@@ -80,7 +80,7 @@ export class StorexHubBackground {
         this.socket.on('disconnect', () => {
             connected = false
         })
-        this.socket.on('connect', async () => {
+        this.socket.on('reconnect', async () => {
             connected = true
             if (connected || !this.accessToken) {
                 return
