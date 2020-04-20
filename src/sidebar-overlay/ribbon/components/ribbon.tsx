@@ -96,7 +96,7 @@ class Ribbon extends Component<Props, State> {
         this.setState(() => ({ shortcutsReady: true }))
 
         if (this.props.hideOnMouseLeave) {
-            this.ribbonRef.addEventListener('mouseleave', this.handleMouseLeave)
+            // this.ribbonRef.addEventListener('mouseleave', this.handleMouseLeave)
         }
     }
 
